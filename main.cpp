@@ -47,48 +47,64 @@ int main(int argc, char **argv) {
         //int N = 3;
         // check thickness at each level
         int tol = 4;
-        for (int k = 1; k <= 3; k+=2) {
-            for (int i = (croppedFrame.rows * k / 4 - tol/2); i < croppedFrame.rows * k / 4 + tol/2; i++) {
-                //cout << i << " ";
-                for (int j = 0; j < croppedFrame.cols; j++) {
-                    if (croppedFrame.at<uchar>(i, j) >= 250) {
-                        startWhitePosCurr.push_back(j);
-                        break;
-                    }
-                }
-                for(int j = croppedFrame.cols; j > 0; j--) {
-                    if (croppedFrame.at<uchar>(i, j) >= 250) {
-                        endWhitePosCurr.push_back(j);
-                        break;
-                    }
-                }
+
+        double black = croppedFrame.cols;
+
+        for (int i = 0; i < croppedFrame.cols; i++) {
+            if (croppedFrame.at<uchar>((int) croppedFrame.rows * 0.6, i) >= 250) {
+                black--;
             }
-            //cout << endl;
         }
-        if (f == 0) {
-            startWhitePosPrev = startWhitePosCurr;
-            endWhitePosPrev = endWhitePosCurr;
-        }
-        else {
-            int changes = 0;
-            for (int i = 0; i < startWhitePosCurr.size(); i++) {
-                if(startWhitePosCurr.size() != startWhitePosPrev.size() || endWhitePosCurr.size() != endWhitePosPrev.size()){
-                    changes ++;
-                }else {
-                    if (((startWhitePosCurr.at(i) - startWhitePosPrev.at(i)) *
-                        (startWhitePosCurr.at(i) - startWhitePosPrev.at(i)) > 4) ||
-                            ((endWhitePosCurr.at(i) - endWhitePosPrev.at(i)) *
-                             (endWhitePosCurr.at(i) - endWhitePosPrev.at(i)) > 4)){
+
+        if (black / (double) croppedFrame.cols > 0.85) {
+            for (int k = 1; k <= 3; k += 2) {
+                for (int i = (croppedFrame.rows * k / 4 - tol / 2); i < croppedFrame.rows * k / 4 + tol / 2; i++) {
+                    //cout << i << " ";
+                    for (int j = 0; j < croppedFrame.cols; j++) {
+                        if (croppedFrame.at<uchar>(i, j) >= 250) {
+                            startWhitePosCurr.push_back(j);
+                            break;
+                        }
+                    }
+                    for (int j = croppedFrame.cols; j > 0; j--) {
+                        if (croppedFrame.at<uchar>(i, j) >= 250) {
+                            endWhitePosCurr.push_back(j);
+                            break;
+                        }
+                    }
+                }
+                //cout << endl;
+            }
+            if (f == 0) {
+                startWhitePosPrev = startWhitePosCurr;
+                endWhitePosPrev = endWhitePosCurr;
+            }
+            else {
+                int changes = 0;
+                for (int i = 0; i < startWhitePosCurr.size(); i++) {
+                    if (startWhitePosCurr.size() != startWhitePosPrev.size() ||
+                        endWhitePosCurr.size() != endWhitePosPrev.size()) {
                         changes++;
+                    } else {
+                        if (((startWhitePosCurr.at(i) - startWhitePosPrev.at(i)) *
+                             (startWhitePosCurr.at(i) - startWhitePosPrev.at(i)) > 4) ||
+                            ((endWhitePosCurr.at(i) - endWhitePosPrev.at(i)) *
+                             (endWhitePosCurr.at(i) - endWhitePosPrev.at(i)) > 4)) {
+                            changes++;
+                        }
                     }
                 }
+                if (changes > 2 * tol * 0.75) {
+                    cout << f / fps << endl;
+                }
             }
-            if (changes > 2 * tol * 0.75) {
-                cout << f / fps << endl;
-            }
+        }else{
+            cout << "skipped frame " << f << endl;
         }
         startWhitePosPrev = startWhitePosCurr;
         endWhitePosPrev = endWhitePosCurr;
+
+        line(croppedFrame, Point( 10 , croppedFrame.rows * 0.6), Point( croppedFrame.cols - 10 , croppedFrame.rows * 0.6), Scalar( 255, 255, 255 ), 2, 8);
 
         imshow("MyVideo", croppedFrame); //show the frame in "MyVideo" window
 
