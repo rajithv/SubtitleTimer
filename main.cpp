@@ -20,6 +20,9 @@ int main(int argc, char **argv) {
     vector<int> startWhitePosPrev;
     vector<int> endWhitePosPrev;
     int f = 0;
+
+    bool skipped_frame = false;
+
     while (true) {
         Mat frame;
 
@@ -56,7 +59,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (black / (double) croppedFrame.cols > 0.85) {
+        if (black / (double) croppedFrame.cols == 1) {
             for (int k = 1; k <= 3; k += 2) {
                 for (int i = (croppedFrame.rows * k / 4 - tol / 2); i < croppedFrame.rows * k / 4 + tol / 2; i++) {
                     //cout << i << " ";
@@ -76,6 +79,7 @@ int main(int argc, char **argv) {
                 //cout << endl;
             }
             if (f == 0) {
+                cout << 0 << endl;
                 startWhitePosPrev = startWhitePosCurr;
                 endWhitePosPrev = endWhitePosCurr;
             }
@@ -96,10 +100,16 @@ int main(int argc, char **argv) {
                 }
                 if (changes > 2 * tol * 0.75) {
                     cout << f / fps << endl;
+                    skipped_frame = false;
                 }
             }
         }else{
-            cout << "skipped frame " << f << endl;
+            if(!skipped_frame) {
+                cout << f / fps << endl;
+                cout << "-" << endl;
+                skipped_frame = true;
+            }
+            cerr << "skipped frame " << f << endl;
         }
         startWhitePosPrev = startWhitePosCurr;
         endWhitePosPrev = endWhitePosCurr;
@@ -110,7 +120,7 @@ int main(int argc, char **argv) {
 
         if (waitKey(1) == 27) //wait for 'esc' key press for 30 ms. If 'esc' key is pressed, break loop
         {
-            cout << "esc key is pressed by user" << endl;
+            cerr << "esc key is pressed by user" << endl;
             break;
         }
         f++;
