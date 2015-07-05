@@ -7,8 +7,9 @@
 using namespace std;
 using namespace cv;
 
-ofstream fout1("out_ocr_1.txt");
-ofstream fout2("out_ocr_2.txt");
+ofstream fout1;
+ofstream fout2;
+ofstream ftime;
 
 void sendToOCR(Mat image){
     int height = image.rows;
@@ -30,7 +31,9 @@ void sendToOCR(Mat image){
 
     // Get the text
     char* out2 = tess_en.GetUTF8Text();
-    fout2 << out2;
+    string str2(out2);
+    str2.erase(str2.end()-1, str2.end());
+    fout2 << str2;
     fout2.flush();
 
     tesseract::TessBaseAPI tess_de;
@@ -40,18 +43,27 @@ void sendToOCR(Mat image){
 
     // Get the text
     char* out1 = tess_de.GetUTF8Text();
-    fout1 << out1;
+    string str1(out1);
+    str1.erase(str1.end()-1, str1.end());
+    fout1 << str1;
     fout1.flush();
 
 }
 
 int main(int argc, char **argv) {
 
-    if (argc == 0) return 0;
+    if (argc < 5) {
+        cerr << "Usage : ./SubtitleTimer.o <Video File> <Time File> <Sub Main Language> <Sub Secondary Language>" << endl;
+        return 0;
+    }
+
+    ftime.open(argv[2]);
+    fout1.open(argv[3]);
+    fout2.open(argv[4]);
 
     char *filename = argv[1];
 
-    VideoCapture capture("https://r1---sn-nau-jhce.googlevideo.com/videoplayback?mt=1436106367&mv=m&pl=19&ms=au&signature=6638A791EC39D92F0B78C1729E262D94F6E4500D.1290B7007847392130D3C6B66AD7ADA50AD37CBD&fexp=901816,936110,9407141,9408142,9408420,9408710,9416126,952640&key=yt5&mm=31&mn=sn-nau-jhce&sver=3&initcwndbps=612500&ipbits=0&ratebypass=yes&expire=1436128043&mime=video/mp4&upn=r96TlOG5XU4&id=o-AByEs0xcovZ2o57eBjK_s1miC6d0rXM7n0TYgTTu-QZA&sparams=dur,id,initcwndbps,ip,ipbits,itag,lmt,mime,mm,mn,ms,mv,pl,ratebypass,requiressl,source,upn,expire&source=youtube&dur=486.016&ip=124.43.104.231&itag=22&lmt=1435531519368512&requiressl=yes");
+    VideoCapture capture(filename);
 
     double fps = capture.get(CV_CAP_PROP_FPS);
 
@@ -64,7 +76,7 @@ int main(int argc, char **argv) {
     bool skipped_frame = false;
     bool first_frame = true;
 
-    while (true) {
+    while (capture.isOpened()) {
         Mat frame;
 
         bool bSuccess = capture.read(frame); // read a new frame from video
