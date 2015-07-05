@@ -1,9 +1,49 @@
 #include <iostream>
+#include <fstream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <tesseract/baseapi.h>
 
 using namespace std;
 using namespace cv;
+
+ofstream fout1("out_ocr_1.txt");
+ofstream fout2("out_ocr_2.txt");
+
+void sendToOCR(Mat image){
+    int height = image.rows;
+    int width = image.cols;
+
+    Rect ROI_lang1(0, 0, width, height*0.6);
+    Rect ROI_lang2(0, height*0.6, width, height*0.4);
+
+    Mat image_lang1 = image (ROI_lang1);
+    Mat image_lang2 = image (ROI_lang2);
+
+    imshow("Lang1", image_lang1);
+    imshow("Lang2", image_lang2);
+
+    tesseract::TessBaseAPI tess_en;
+    tess_en.Init(NULL, "eng+deu", tesseract::OEM_DEFAULT);
+    tess_en.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+    tess_en.SetImage((uchar*)image_lang2.data, image_lang2.cols, image_lang2.rows, 1, image_lang2.cols);
+
+    // Get the text
+    char* out2 = tess_en.GetUTF8Text();
+    fout2 << out2;
+    fout2.flush();
+
+    tesseract::TessBaseAPI tess_de;
+    tess_de.Init(NULL, "deu", tesseract::OEM_DEFAULT);
+    tess_de.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+    tess_de.SetImage((uchar*)image_lang1.data, image_lang1.cols, image_lang1.rows, 1, image_lang1.cols);
+
+    // Get the text
+    char* out1 = tess_de.GetUTF8Text();
+    fout1 << out1;
+    fout1.flush();
+
+}
 
 int main(int argc, char **argv) {
 
@@ -11,7 +51,7 @@ int main(int argc, char **argv) {
 
     char *filename = argv[1];
 
-    VideoCapture capture(filename);
+    VideoCapture capture("https://r1---sn-nau-jhce.googlevideo.com/videoplayback?mt=1436106367&mv=m&pl=19&ms=au&signature=6638A791EC39D92F0B78C1729E262D94F6E4500D.1290B7007847392130D3C6B66AD7ADA50AD37CBD&fexp=901816,936110,9407141,9408142,9408420,9408710,9416126,952640&key=yt5&mm=31&mn=sn-nau-jhce&sver=3&initcwndbps=612500&ipbits=0&ratebypass=yes&expire=1436128043&mime=video/mp4&upn=r96TlOG5XU4&id=o-AByEs0xcovZ2o57eBjK_s1miC6d0rXM7n0TYgTTu-QZA&sparams=dur,id,initcwndbps,ip,ipbits,itag,lmt,mime,mm,mn,ms,mv,pl,ratebypass,requiressl,source,upn,expire&source=youtube&dur=486.016&ip=124.43.104.231&itag=22&lmt=1435531519368512&requiressl=yes");
 
     double fps = capture.get(CV_CAP_PROP_FPS);
 
@@ -22,6 +62,7 @@ int main(int argc, char **argv) {
     int f = 0;
 
     bool skipped_frame = false;
+    bool first_frame = true;
 
     while (true) {
         Mat frame;
@@ -34,6 +75,7 @@ int main(int argc, char **argv) {
         Rect ROI(0, hei * 0.78, wid, hei * 0.12);
 
         Mat croppedFrame = frame(ROI);
+
 
         cvtColor(croppedFrame, croppedFrame, CV_RGB2GRAY);
         threshold(croppedFrame, croppedFrame, 100, 255, 0);
@@ -60,6 +102,14 @@ int main(int argc, char **argv) {
         }
 
         if (black / (double) croppedFrame.cols == 1) {
+
+            if(first_frame){
+                first_frame = false;
+                cout << f / fps << endl;
+                sendToOCR(croppedFrame);
+                skipped_frame = false;
+            }
+
             for (int k = 1; k <= 3; k += 2) {
                 for (int i = (croppedFrame.rows * k / 4 - tol / 2); i < croppedFrame.rows * k / 4 + tol / 2; i++) {
                     //cout << i << " ";
@@ -100,11 +150,13 @@ int main(int argc, char **argv) {
                 }
                 if (changes > 2 * tol * 0.75) {
                     cout << f / fps << endl;
+                    sendToOCR(croppedFrame);
                     skipped_frame = false;
                 }
             }
         }else{
             if(!skipped_frame) {
+                //sendToOCR(croppedFrame);
                 cout << f / fps << endl;
                 cout << "-" << endl;
                 skipped_frame = true;
