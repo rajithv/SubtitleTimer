@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     fout2.open(argv[4]);
 
     char *filename = argv[1];
-
+git s
     VideoCapture capture(filename);
 
     double fps = capture.get(CV_CAP_PROP_FPS);
