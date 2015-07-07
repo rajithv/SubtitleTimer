@@ -35,6 +35,7 @@ void sendToOCR(Mat image){
     str2.erase(str2.end()-1, str2.end());
     fout2 << str2;
     fout2.flush();
+    cerr << str2 << endl;
 
     tesseract::TessBaseAPI tess_de;
     tess_de.Init(NULL, "deu", tesseract::OEM_DEFAULT);
@@ -47,6 +48,7 @@ void sendToOCR(Mat image){
     str1.erase(str1.end()-1, str1.end());
     fout1 << str1;
     fout1.flush();
+    cerr << str1 << endl;
 
 }
 
@@ -62,7 +64,7 @@ int main(int argc, char **argv) {
     fout2.open(argv[4]);
 
     char *filename = argv[1];
-git s
+
     VideoCapture capture(filename);
 
     double fps = capture.get(CV_CAP_PROP_FPS);
@@ -117,7 +119,7 @@ git s
 
             if(first_frame){
                 first_frame = false;
-                cout << f / fps << endl;
+                ftime << f / fps << endl;
                 sendToOCR(croppedFrame);
                 skipped_frame = false;
             }
@@ -141,7 +143,7 @@ git s
                 //cout << endl;
             }
             if (f == 0) {
-                cout << 0 << endl;
+                ftime << 0 << endl;
                 startWhitePosPrev = startWhitePosCurr;
                 endWhitePosPrev = endWhitePosCurr;
             }
@@ -161,7 +163,7 @@ git s
                     }
                 }
                 if (changes > 2 * tol * 0.75) {
-                    cout << f / fps << endl;
+                    ftime << f / fps << endl;
                     sendToOCR(croppedFrame);
                     skipped_frame = false;
                 }
@@ -169,8 +171,8 @@ git s
         }else{
             if(!skipped_frame) {
                 //sendToOCR(croppedFrame);
-                cout << f / fps << endl;
-                cout << "-" << endl;
+                ftime << f / fps << endl;
+                ftime << "-" << endl;
                 skipped_frame = true;
             }
             cerr << "skipped frame " << f << endl;
