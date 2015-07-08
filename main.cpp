@@ -24,6 +24,8 @@ void sendToOCR(Mat image){
     imshow("Lang1", image_lang1);
     imshow("Lang2", image_lang2);
 
+    //waitKey(0);
+
     tesseract::TessBaseAPI tess_en;
     tess_en.Init(NULL, "eng+deu", tesseract::OEM_DEFAULT);
     tess_en.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
@@ -32,10 +34,15 @@ void sendToOCR(Mat image){
     // Get the text
     char* out2 = tess_en.GetUTF8Text();
     string str2(out2);
-    str2.erase(str2.end()-1, str2.end());
-    fout2 << str2;
-    fout2.flush();
-    cerr << str2 << endl;
+
+    if(str2.length() > 0) {
+
+        str2.erase(str2.end() - 1, str2.end());
+        fout2 << str2;
+        fout2.flush();
+        cerr << str2 << endl;
+
+    }
 
     tesseract::TessBaseAPI tess_de;
     tess_de.Init(NULL, "deu", tesseract::OEM_DEFAULT);
@@ -45,11 +52,12 @@ void sendToOCR(Mat image){
     // Get the text
     char* out1 = tess_de.GetUTF8Text();
     string str1(out1);
-    str1.erase(str1.end()-1, str1.end());
-    fout1 << str1;
-    fout1.flush();
-    cerr << str1 << endl;
-
+    if(str1.length() > 0) {
+        str1.erase(str1.end() - 1, str1.end());
+        fout1 << str1;
+        fout1.flush();
+        cerr << str1 << endl;
+    }
 }
 
 int main(int argc, char **argv) {
@@ -65,7 +73,11 @@ int main(int argc, char **argv) {
 
     char *filename = argv[1];
 
+    //cout << "File Name is " << filename << endl;
+
     VideoCapture capture(filename);
+
+    //cout << "Sucessfully Captured the Video" << endl;
 
     double fps = capture.get(CV_CAP_PROP_FPS);
 
@@ -81,7 +93,18 @@ int main(int argc, char **argv) {
     while (capture.isOpened()) {
         Mat frame;
 
+
         bool bSuccess = capture.read(frame); // read a new frame from video
+        if (!bSuccess) //if not success, break loop
+        {
+            cout << "Cannot read the frame from video file" << endl;
+            break;
+        }
+
+        //imshow("Frame", frame);
+        //waitKey(0);
+
+        //cout << "Frame No " << f << endl;
 
         int wid = frame.cols;
         int hei = frame.rows;
@@ -94,12 +117,6 @@ int main(int argc, char **argv) {
         cvtColor(croppedFrame, croppedFrame, CV_RGB2GRAY);
         threshold(croppedFrame, croppedFrame, 100, 255, 0);
 
-
-        if (!bSuccess) //if not success, break loop
-        {
-            cout << "Cannot read the frame from video file" << endl;
-            break;
-        }
         vector<int> startWhitePosCurr;
         vector<int> endWhitePosCurr;
         // set number of lines

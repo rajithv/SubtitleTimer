@@ -8,9 +8,9 @@ def format_timestamp(seconds):
     seconds = float(seconds) - float(mins*60);
     hours = mins // 60;
     mins = mins % 60;
-    seconds_string = "{:2.3f}".format(seconds).replace('.',',')
+    seconds_string = "{:06.3f}".format(seconds).replace('.',',')
     
-    return str(hours)+":"+str(mins)+":"+seconds_string
+    return '{0:02d}'.format(hours)+":"+'{0:02d}'.format(mins)+":"+seconds_string
 
 prefix = ""
 
