@@ -11,15 +11,15 @@ ofstream fout1;
 ofstream fout2;
 ofstream ftime;
 
-void sendToOCR(Mat image){
+void sendToOCR(Mat image) {
     int height = image.rows;
     int width = image.cols;
 
-    Rect ROI_lang1(0, 0, width, height*0.6);
-    Rect ROI_lang2(0, height*0.6, width, height*0.4);
+    Rect ROI_lang1(0, 0, width, height * 0.6);
+    Rect ROI_lang2(0, height * 0.6, width, height * 0.4);
 
-    Mat image_lang1 = image (ROI_lang1);
-    Mat image_lang2 = image (ROI_lang2);
+    Mat image_lang1 = image(ROI_lang1);
+    Mat image_lang2 = image(ROI_lang2);
 
     imshow("Lang1", image_lang1);
     imshow("Lang2", image_lang2);
@@ -29,13 +29,13 @@ void sendToOCR(Mat image){
     tesseract::TessBaseAPI tess_en;
     tess_en.Init(NULL, "eng+deu", tesseract::OEM_DEFAULT);
     tess_en.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
-    tess_en.SetImage((uchar*)image_lang2.data, image_lang2.cols, image_lang2.rows, 1, image_lang2.cols);
+    tess_en.SetImage((uchar *) image_lang2.data, image_lang2.cols, image_lang2.rows, 1, image_lang2.cols);
 
     // Get the text
-    char* out2 = tess_en.GetUTF8Text();
+    char *out2 = tess_en.GetUTF8Text();
     string str2(out2);
 
-    if(str2.length() > 0) {
+    if (str2.length() > 0) {
 
         str2.erase(str2.end() - 1, str2.end());
         fout2 << str2;
@@ -47,12 +47,12 @@ void sendToOCR(Mat image){
     tesseract::TessBaseAPI tess_de;
     tess_de.Init(NULL, "deu", tesseract::OEM_DEFAULT);
     tess_de.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
-    tess_de.SetImage((uchar*)image_lang1.data, image_lang1.cols, image_lang1.rows, 1, image_lang1.cols);
+    tess_de.SetImage((uchar *) image_lang1.data, image_lang1.cols, image_lang1.rows, 1, image_lang1.cols);
 
     // Get the text
-    char* out1 = tess_de.GetUTF8Text();
+    char *out1 = tess_de.GetUTF8Text();
     string str1(out1);
-    if(str1.length() > 0) {
+    if (str1.length() > 0) {
         str1.erase(str1.end() - 1, str1.end());
         fout1 << str1;
         fout1.flush();
@@ -60,10 +60,55 @@ void sendToOCR(Mat image){
     }
 }
 
+vector<int> getStartWhitePos(int yLocation, Mat croppedFrame) {
+    vector<int> working;
+    for(int i = -2; i < 2; i ++) {
+        for (int j = 0; j < croppedFrame.cols; j++) {
+            if (croppedFrame.at<uchar>(yLocation + i, j) >= 250) {
+                working.push_back(j);
+                break;
+            }
+        }
+    }
+    return working;
+}
+
+vector<int> getEndWhitePos(int yLocation, Mat croppedFrame) {
+    vector<int> working;
+    for(int i = -2; i < 2; i ++) {
+        for (int j = croppedFrame.cols; j > 0; j--) {
+            if (croppedFrame.at<uchar>(yLocation + i, j) >= 250) {
+                working.push_back(j);
+                break;
+            }
+        }
+    }
+    return working;
+}
+
+int getChanges (vector<int> currStart, vector<int> prevStart, vector<int> currEnd, vector<int> prevEnd){
+    int changes = 0;
+    for (int i = 0; i < currStart.size(); i++) {
+        if (currStart.size() != prevStart.size() ||
+            currEnd.size() != prevEnd.size()) {
+            changes++;
+        } else {
+            if (((currStart.at(i) - prevStart.at(i)) *
+                 (currStart.at(i) - prevStart.at(i)) > 4) ||
+                ((currEnd.at(i) - prevEnd.at(i)) *
+                 (currEnd.at(i) - prevEnd.at(i)) > 4)) {
+                changes++;
+            }
+        }
+    }
+    return changes;
+}
+
 int main(int argc, char **argv) {
 
     if (argc < 5) {
-        cerr << "Usage : ./SubtitleTimer.o <Video File> <Time File> <Sub Main Language> <Sub Secondary Language>" << endl;
+        cerr << "Usage : ./SubtitleTimer.o <Video File> <Time File> <Sub Main Language> <Sub Secondary Language>" <<
+        endl;
         return 0;
     }
 
@@ -85,6 +130,12 @@ int main(int argc, char **argv) {
 
     vector<int> startWhitePosPrev;
     vector<int> endWhitePosPrev;
+
+    vector<int> startWhitePosPrevTop;
+    vector<int> endWhitePosPrevTop;
+    vector<int> startWhitePosPrevBot;
+    vector<int> endWhitePosPrevBot;
+
     int f = 0;
 
     bool skipped_frame = false;
@@ -119,6 +170,13 @@ int main(int argc, char **argv) {
 
         vector<int> startWhitePosCurr;
         vector<int> endWhitePosCurr;
+
+        vector<int> startWhitePosCurrTop;
+        vector<int> endWhitePosCurrTop;
+        vector<int> startWhitePosCurrBot;
+        vector<int> endWhitePosCurrBot;
+
+
         // set number of lines
         //int N = 3;
         // check thickness at each level
@@ -134,59 +192,43 @@ int main(int argc, char **argv) {
 
         if (black / (double) croppedFrame.cols == 1) {
 
-            if(first_frame){
+            if (first_frame) {
                 first_frame = false;
                 ftime << f / fps << endl;
                 sendToOCR(croppedFrame);
                 skipped_frame = false;
             }
 
-            for (int k = 1; k <= 3; k += 2) {
-                for (int i = (croppedFrame.rows * k / 4 - tol / 2); i < croppedFrame.rows * k / 4 + tol / 2; i++) {
-                    //cout << i << " ";
-                    for (int j = 0; j < croppedFrame.cols; j++) {
-                        if (croppedFrame.at<uchar>(i, j) >= 250) {
-                            startWhitePosCurr.push_back(j);
-                            break;
-                        }
-                    }
-                    for (int j = croppedFrame.cols; j > 0; j--) {
-                        if (croppedFrame.at<uchar>(i, j) >= 250) {
-                            endWhitePosCurr.push_back(j);
-                            break;
-                        }
-                    }
-                }
-                //cout << endl;
-            }
+            int topPos = croppedFrame.rows * 1 / 4;
+            int botPos = croppedFrame.rows * 3 / 4;
+
+            startWhitePosCurrTop = getStartWhitePos(topPos, croppedFrame);
+            endWhitePosCurrTop = getEndWhitePos(topPos, croppedFrame);
+
+            startWhitePosCurrBot = getStartWhitePos(botPos, croppedFrame);
+            endWhitePosCurrBot = getEndWhitePos(botPos, croppedFrame);
+
             if (f == 0) {
                 ftime << 0 << endl;
-                startWhitePosPrev = startWhitePosCurr;
-                endWhitePosPrev = endWhitePosCurr;
+                startWhitePosPrevTop = startWhitePosCurrTop;
+                endWhitePosPrevTop = endWhitePosCurrTop;
+                startWhitePosPrevBot = startWhitePosCurrBot;
+                endWhitePosPrevBot = endWhitePosCurrBot;
             }
             else {
                 int changes = 0;
-                for (int i = 0; i < startWhitePosCurr.size(); i++) {
-                    if (startWhitePosCurr.size() != startWhitePosPrev.size() ||
-                        endWhitePosCurr.size() != endWhitePosPrev.size()) {
-                        changes++;
-                    } else {
-                        if (((startWhitePosCurr.at(i) - startWhitePosPrev.at(i)) *
-                             (startWhitePosCurr.at(i) - startWhitePosPrev.at(i)) > 4) ||
-                            ((endWhitePosCurr.at(i) - endWhitePosPrev.at(i)) *
-                             (endWhitePosCurr.at(i) - endWhitePosPrev.at(i)) > 4)) {
-                            changes++;
-                        }
-                    }
-                }
-                if (changes > 2 * tol * 0.75) {
+                int topChanges = getChanges(startWhitePosCurrTop, startWhitePosPrevTop, endWhitePosCurrTop, endWhitePosPrevTop);
+                int botChanges = getChanges(startWhitePosCurrBot, startWhitePosPrevBot, endWhitePosCurrBot, endWhitePosPrevBot);
+               // cout << f << ": " << topChanges << ":" << startWhitePosCurrTop.size() << " " << botChanges << ":" << startWhitePosCurrBot.size() << endl;
+                if (topChanges > tol  * 0.75 || botChanges > tol * 0.75) {
                     ftime << f / fps << endl;
+                    cout << f / fps << endl;
                     sendToOCR(croppedFrame);
                     skipped_frame = false;
                 }
             }
-        }else{
-            if(!skipped_frame) {
+        } else {
+            if (!skipped_frame) {
                 //sendToOCR(croppedFrame);
                 ftime << f / fps << endl;
                 ftime << "-" << endl;
@@ -194,10 +236,13 @@ int main(int argc, char **argv) {
             }
             cerr << "skipped frame " << f << endl;
         }
-        startWhitePosPrev = startWhitePosCurr;
-        endWhitePosPrev = endWhitePosCurr;
+        startWhitePosPrevTop = startWhitePosCurrTop;
+        endWhitePosPrevTop = endWhitePosCurrTop;
+        startWhitePosPrevBot = startWhitePosCurrBot;
+        endWhitePosPrevBot = endWhitePosCurrBot;
 
-        line(croppedFrame, Point( 10 , croppedFrame.rows * 0.6), Point( croppedFrame.cols - 10 , croppedFrame.rows * 0.6), Scalar( 255, 255, 255 ), 2, 8);
+        line(croppedFrame, Point(10, croppedFrame.rows * 0.6), Point(croppedFrame.cols - 10, croppedFrame.rows * 0.6),
+             Scalar(255, 255, 255), 2, 8);
 
         imshow("MyVideo", croppedFrame); //show the frame in "MyVideo" window
 
